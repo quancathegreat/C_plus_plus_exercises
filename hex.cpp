@@ -15,12 +15,14 @@ class Hex
   direction direction1;
   direction direction2; //For the corner
   vector<Hex*> neighbor;
+  
   public: //Constructor
   Hex(int i)
   {
     id = i;
     stateFlag = hexState::none;
     direction1 = direction::center;
+    visited = false;
   }
   //Set flag: corner
   void setCorner(direction a, direction b)
@@ -71,6 +73,7 @@ class Hex
   {
     return id;
   }
+  bool visited;
 };
 
 class Player
