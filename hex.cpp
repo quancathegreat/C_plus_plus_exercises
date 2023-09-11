@@ -16,7 +16,8 @@ class Hex
   direction direction2; //For the corner
   vector<Hex*> neighbor;
   
-  public: //Constructor
+  public: 
+  //Constructor
   Hex(int i)
   {
     id = i;
@@ -49,7 +50,7 @@ class Hex
   {
     direction1 = a;
   }
-
+  //Code to display the hex in the CLI
   void displayHex()
   {
     switch(stateFlag)
@@ -65,30 +66,67 @@ class Hex
       break;
     }
   }
+  //Method to access the corner flag  
   bool cornerFlag()
   {
     return isCorner;
   }
+  //Method to access the ID of the hex
   int getID()
   {
     return id;
   }
+  //Should probably private this attribute and use a method to access this one.
   bool visited;
+  //Method to set the color (or X and O) of the hex, will return true if successfully set, will return false if there is already a color
+  bool setColor(hexState color)
+  {
+    if (stateFlag == hexState::none)
+    {
+      stateFlag = color;
+      return true;
+    }
+    else return false;
+  }
 };
 
 class Player
 {
+  private:
+  //List of a captured hex for a player object
   vector<Hex*>capturedHex;
+  //Identify which is which, X or O
   hexState teamColor;
+  //For use in win condition algorithm, to be implemented
   vector<Hex*>longest;
+  public:
+  //Player initialization
   hexState selectColor(hexState a)
   {
     teamColor = a;
     return a;
   }
+  //TODO: Implement win condition algorithm, will probably implement something akin to dijkstra's algorithm
   bool hasWon(direction start);
+  //Constructor
+  Player(hexState team)
+  {
+    teamColor = team;
+  }
+  //Method to capture the hexes, return true if successfully capture, return false if failure
+  bool capture(Hex& selectedHex)
+  {
+    if(selectedHex.visited) return false;
+    else 
+    {
+      capturedHex.push_back(&selectedHex);
+      selectedHex.visited = true;
+      selectedHex.setColor(teamColor);
+      return true;
+    }
+  }
 };
-
+//Implementation of the win condition algorithm, WIP 
 bool Player::hasWon(direction start)
 {
   return 1;
@@ -116,10 +154,18 @@ vector<Hex> initBoard(const int size)
       listHex[a].setEdge(direction::east);
     if (((a > (size*(size - 1))) && (a < size*size - 1)))
       listHex[a].setEdge(direction::south);
-    if (a == (size*size - 1)) listHex[a].setCorner(direction::south, direction::east);
-    if (a == (size*(size - 1))) listHex[a].setCorner(direction::south, direction::west);
+    if (a == (size*size - 1))
+      listHex[a].setCorner(direction::south, direction::east);
+    if (a == (size*(size - 1)))
+      listHex[a].setCorner(direction::south, direction::west);
   }
   return listHex;
+}
+
+void boardLink(vector<Hex> board)
+{
+  int size = board.size();
+
 }
 
 int main()
