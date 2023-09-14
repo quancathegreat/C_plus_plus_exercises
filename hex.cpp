@@ -88,6 +88,14 @@ class Hex
     }
     else return false;
   }
+  vector<Hex*> getNeighboring()
+  {
+    return neighbor;
+  }
+  hexState getColor()
+  {
+    return stateFlag;
+  }
 };
 
 class Player
@@ -124,6 +132,25 @@ class Player
       selectedHex.setColor(teamColor);
       return true;
     }
+  }
+  //Pathfinding algorithm
+  int deploy(Hex* deployed)
+  {
+    int deployedCount = 0;
+    vector<Hex*> neighbor = deployed ->getNeighboring();
+    if(!(deployed -> visited))
+    {
+      for(auto i = neighbor.begin(); i != neighbor.end(); ++i)
+      {
+        if((*i)->visited == false && (*i)->getColor() == teamColor)
+        {
+          longest.push_back(*i);
+          ++deployedCount;
+        }
+      }
+      return deployedCount;
+    }
+    else return 0;
   }
 };
 //Implementation of the win condition algorithm, WIP 
