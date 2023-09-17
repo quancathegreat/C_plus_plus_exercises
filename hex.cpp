@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cmath>
+#include <stdlib.h>
+
 using std::cout, std::cin, std::string, std::vector;
 
 enum class hexState {none, red, blue};
@@ -56,13 +59,15 @@ class Hex
     switch(stateFlag)
     {
       case hexState::none:
-      cout << id;
+      if (id < 10) cout << "( " << id << " )";
+      if (id >= 10 && id < 100) cout << "( " << id << ")";
+      if (id >= 100) cout << "(" << id << ")";
       break;
       case hexState::blue:
-      cout << "X";
+      cout << "( X )";
       break;
       case hexState::red:
-      cout << "O";
+      cout << "( \033[1;31mO\033[1;0m )";
       break;
     }
   }
@@ -91,6 +96,10 @@ class Hex
   vector<Hex*> getNeighboring()
   {
     return neighbor;
+  }
+  bool isEdge()
+  {
+    return (direction1 != direction::center);
   }
   hexState getColor()
   {
@@ -189,19 +198,62 @@ vector<Hex> initBoard(const int size)
   return listHex;
 }
 
-void boardLink(vector<Hex> board)
+void boardLink(vector<Hex> &board)
 {
   int size = board.size();
-
+  int row = (int)sqrt(board.size());
+  for(int i = 0; i < size; ++i)
+  {
+    if(i == 0)
+    {
+      board[i].connectHex(&board[1]);
+      board[i].connectHex(&board[row]);
+      board[i].connectHex(&board[row+1]);
+    }
+  }
+}
+void render(vector<Hex> &board)
+{
+  system("cls");
+  int offset = 1;
+  for(auto i = board.begin(); i != board.end(); ++i)
+  {
+    i -> displayHex();
+    cout << "   ";
+    if((i -> getID() + 1) % (int)sqrt(board.size()) == 0) 
+    {
+      cout << "\n\n";
+      for (int a =  0; a < offset; ++a)
+      {
+        cout << "   ";
+      }
+      ++offset;
+    }
+  }
+  cout << std::endl;
 }
 
 int main()
 {
-  vector<Hex> board = initBoard(5);
-  for(auto i = board.begin(); i != board.end(); ++i)
+  int size;
+  cout << "DEBUG: Insert board size: ";
+  cin >> size;
+  cout << std::endl;
+  Player playerTest = Player(hexState::red);
+  vector<Hex> board = initBoard(size);
+  render(board);
+  while(true)
   {
-    i -> displayHex();
-    cout << "\t";
-    if((i -> getID() + 1) % 5 == 0) cout << "\n";
+    int move;
+    cout << "Please specify the move: ";
+    cin >> move;
+    cout << std::endl;
+    while(!playerTest.capture(board[move]))
+    {
+      cout << "This is not a valid move, please select another! ";
+      cin >> move;
+      cout << std::endl;
+    }
+    render(board);
   }
 }
