@@ -64,7 +64,7 @@ class Hex
       if (id >= 100) cout << "(" << id << ")";
       break;
       case hexState::blue:
-      cout << "( X )";
+      cout << "( \033[1;34mX\033[1;0m )";
       break;
       case hexState::red:
       cout << "( \033[1;31mO\033[1;0m )";
@@ -204,11 +204,40 @@ void boardLink(vector<Hex> &board)
   int row = (int)sqrt(board.size());
   for(int i = 0; i < size; ++i)
   {
+    //top left corner
     if(i == 0)
     {
       board[i].connectHex(&board[1]);
       board[i].connectHex(&board[row]);
-      board[i].connectHex(&board[row+1]);
+    }
+    //Top edge
+    if(i > 0 && i < row - 1)
+    {
+      board[i].connectHex(&board[i-1]);
+      board[i].connectHex(&board[i+1]);
+      board[i].connectHex(&board[i+row-1]);
+      board[i].connectHex(&board[i+row]);
+    }
+    //top right corner
+    if(i == row - 1)
+    {
+      board[i].connectHex(&board[i-1]);
+      board[i].connectHex(&board[i+row-1]);
+      board[i].connectHex(&board[i+row]);
+    }
+    //right edge
+    if((i+1) % row == 0 && (i+1) < (size))
+    {
+      board[i].connectHex(&board[i-1]);
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i+row-1]);
+      board[i].connectHex(&board[i+row]);
+    }
+    //bottom right corner
+    if(i == size - 1)
+    {
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i-1]);
     }
   }
 }
@@ -239,21 +268,25 @@ int main()
   cout << "DEBUG: Insert board size: ";
   cin >> size;
   cout << std::endl;
-  Player playerTest = Player(hexState::red);
+  vector<Player> playerTest;
+  playerTest.push_back(Player(hexState::blue));
+  playerTest.push_back(Player(hexState::red));
   vector<Hex> board = initBoard(size);
   render(board);
+  bool turnPlayer = 0;
   while(true)
   {
     int move;
-    cout << "Please specify the move: ";
+    cout << "Player " << turnPlayer + 1 << "'s turn! " <<"Please specify the move: ";
     cin >> move;
     cout << std::endl;
-    while(!playerTest.capture(board[move]))
+    while(!playerTest[turnPlayer].capture(board[move]))
     {
       cout << "This is not a valid move, please select another! ";
       cin >> move;
       cout << std::endl;
     }
     render(board);
+    turnPlayer = !turnPlayer;
   }
 }
