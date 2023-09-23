@@ -239,6 +239,15 @@ void boardLink(vector<Hex> &board)
       board[i].connectHex(&board[i-row]);
       board[i].connectHex(&board[i-1]);
     }
+    //Bottom edge
+    if(i > size - row && i < size - 1)
+    {
+      board[i].connectHex(&board[i-1]);
+      board[i].connectHex(&board[i+1]);
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i-row+1]);
+    }
+    
   }
 }
 void render(vector<Hex> &board)
