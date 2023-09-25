@@ -7,7 +7,8 @@
 using std::cout, std::cin, std::string, std::vector;
 
 enum class hexState {none, red, blue};
-enum class direction {center, north, east, south, west};
+enum class direction {center, north, east, south, west, unused = -1};
+enum class path {vertical, horizontal};
 
 class Hex
 {
@@ -52,6 +53,7 @@ class Hex
   void setEdge(direction a)
   {
     direction1 = a;
+    direction2 = direction::unused;
   }
   //Code to display the hex in the CLI
   void displayHex()
@@ -101,6 +103,14 @@ class Hex
   {
     return (direction1 != direction::center);
   }
+  direction getEdge1()
+  {
+    return direction1;
+  }
+  direction getEdge2()
+  {
+    return direction2;
+  }
   hexState getColor()
   {
     return stateFlag;
@@ -116,6 +126,9 @@ class Player
   hexState teamColor;
   //For use in win condition algorithm, to be implemented
   vector<Hex*>longest;
+  int chosenPath;
+  short int winFlag;
+  direction begin;
   public:
   //Player initialization
   hexState selectColor(hexState a)
@@ -129,6 +142,7 @@ class Player
   Player(hexState team)
   {
     teamColor = team;
+    winFlag = 0;
   }
   //Method to capture the hexes, return true if successfully capture, return false if failure
   bool capture(Hex& selectedHex)
@@ -139,6 +153,63 @@ class Player
       capturedHex.push_back(&selectedHex);
       selectedHex.visited = true;
       selectedHex.setColor(teamColor);
+      if(selectedHex.isEdge())
+      {
+        switch(chosenPath)
+        {
+          case (int)path::vertical:
+          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 0)
+          {
+            ++winFlag;
+            begin = selectedHex.getEdge1();
+          }
+          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
+          {
+            ++winFlag;
+          }
+          break;
+          case (int)path::horizontal:
+          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 0)
+          {
+            ++winFlag;
+            begin = selectedHex.getEdge1();
+          }
+          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
+          {
+            ++winFlag;
+          }
+          break;
+        }
+      }
+      if(selectedHex.cornerFlag())
+      {
+        
+        switch(chosenPath)
+        {
+          case (int)path::vertical:
+          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 0)
+          {
+            ++winFlag;
+            begin = selectedHex.getEdge1();
+          }
+          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
+          {
+            ++winFlag;
+          }
+          break;
+          case (int)path::horizontal:
+          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 0)
+          {
+            ++winFlag;
+            begin = selectedHex.getEdge1();
+          }
+          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
+          {
+            ++winFlag;
+          }
+          break;
+        }
+      }
       return true;
     }
   }
@@ -159,9 +230,14 @@ class Player
       }
       return deployedCount;
     }
-    else return 0;
+    else return deployedCount;
+  }
+  void setDir(int path)
+  {
+    chosenPath = path;
   }
 };
+
 //Implementation of the win condition algorithm, WIP 
 bool Player::hasWon(direction start)
 {
@@ -211,7 +287,7 @@ void boardLink(vector<Hex> &board)
       board[i].connectHex(&board[row]);
     }
     //Top edge
-    if(i > 0 && i < row - 1)
+    else if(i > 0 && i < row - 1)
     {
       board[i].connectHex(&board[i-1]);
       board[i].connectHex(&board[i+1]);
@@ -219,14 +295,14 @@ void boardLink(vector<Hex> &board)
       board[i].connectHex(&board[i+row]);
     }
     //top right corner
-    if(i == row - 1)
+    else if(i == row - 1)
     {
       board[i].connectHex(&board[i-1]);
       board[i].connectHex(&board[i+row-1]);
       board[i].connectHex(&board[i+row]);
     }
     //right edge
-    if((i+1) % row == 0 && (i+1) < (size))
+    else if((i+1) % row == 0 && (i+1) < (size))
     {
       board[i].connectHex(&board[i-1]);
       board[i].connectHex(&board[i-row]);
@@ -234,20 +310,43 @@ void boardLink(vector<Hex> &board)
       board[i].connectHex(&board[i+row]);
     }
     //bottom right corner
-    if(i == size - 1)
+    else if(i == size - 1)
     {
       board[i].connectHex(&board[i-row]);
       board[i].connectHex(&board[i-1]);
     }
     //Bottom edge
-    if(i > size - row && i < size - 1)
+    else if(i > size - row && i < size - 1)
     {
       board[i].connectHex(&board[i-1]);
       board[i].connectHex(&board[i+1]);
       board[i].connectHex(&board[i-row]);
       board[i].connectHex(&board[i-row+1]);
     }
-    
+    //bottom left corner
+    else if(i == size - row)
+    {
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i-row+1]);
+      board[i].connectHex(&board[i+1]);
+    }
+    //right edge
+    else if(i % row == 0 && i != 0 && i != (size - row))
+    {
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i-row+1]);
+      board[i].connectHex(&board[i+1]);
+      board[i].connectHex(&board[i+row]);
+    }
+    else
+    {
+      board[i].connectHex(&board[i-row]);
+      board[i].connectHex(&board[i-row+1]);
+      board[i].connectHex(&board[i+1]);
+      board[i].connectHex(&board[i-1]);
+      board[i].connectHex(&board[i+row]);
+      board[i].connectHex(&board[i+row-1]);
+    }
   }
 }
 void render(vector<Hex> &board)
@@ -281,8 +380,15 @@ int main()
   playerTest.push_back(Player(hexState::blue));
   playerTest.push_back(Player(hexState::red));
   vector<Hex> board = initBoard(size);
+  boardLink(board);
   render(board);
+  int player2dir = 0;
   bool turnPlayer = 0;
+  cout << "Player " << turnPlayer + 2 << " please select where you want to play:\n";
+  cout << "[1] North - South\n" << "[2] East - West\n";
+  cin >> player2dir;
+  playerTest[turnPlayer + 1].setDir(player2dir-1);
+  playerTest[turnPlayer].setDir(!player2dir);
   while(true)
   {
     int move;
