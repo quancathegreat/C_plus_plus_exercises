@@ -3,12 +3,18 @@
 #include <vector>
 #include <cmath>
 #include <stdlib.h>
+#include <windows.h>
 
 using std::cout, std::cin, std::string, std::vector;
 
 enum class hexState {none, red, blue};
 enum class direction {center, north, east, south, west, unused = -1};
 enum class path {vertical, horizontal};
+
+void Color(int color)
+{
+ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
 
 class Hex
 {
@@ -21,6 +27,7 @@ class Hex
   vector<Hex*> neighbor;
   
   public: 
+  bool inList = false;
   //Constructor
   Hex(int i)
   {
@@ -55,21 +62,37 @@ class Hex
     direction1 = a;
     direction2 = direction::unused;
   }
+  int deployed = 0;
+  inline bool fullyDeployed()
+  {
+    int size = this->neighbor.size();
+    if(this->deployed < size) return 0;
+    else return 1;
+  }
   //Code to display the hex in the CLI
   void displayHex()
   {
     switch(stateFlag)
     {
       case hexState::none:
+      Color(15);
       if (id < 10) cout << "( " << id << " )";
       if (id >= 10 && id < 100) cout << "( " << id << ")";
       if (id >= 100) cout << "(" << id << ")";
       break;
       case hexState::blue:
-      cout << "( \033[1;34mX\033[1;0m )";
+      cout << "( ";
+      Color(1);
+      cout << "X";
+      Color(15);
+      cout << " )";
       break;
       case hexState::red:
-      cout << "( \033[1;31mO\033[1;0m )";
+      cout << "( ";
+      Color(4);
+      cout << "O";
+      Color(15);
+      cout << " )";
       break;
     }
   }
@@ -126,10 +149,11 @@ class Player
   hexState teamColor;
   //For use in win condition algorithm, to be implemented
   vector<Hex*>longest;
-  int chosenPath;
-  short int winFlag;
+  path chosenPath;
+  bool winFlag;
   direction begin;
   public:
+  short int ends;
   //Player initialization
   hexState selectColor(hexState a)
   {
@@ -137,12 +161,14 @@ class Player
     return a;
   }
   //TODO: Implement win condition algorithm, will probably implement something akin to dijkstra's algorithm
-  bool hasWon(direction start);
+  bool hasWon();
   //Constructor
   Player(hexState team)
   {
     teamColor = team;
     winFlag = 0;
+    begin = direction::unused;
+    ends = 0;
   }
   //Method to capture the hexes, return true if successfully capture, return false if failure
   bool capture(Hex& selectedHex)
@@ -153,95 +179,112 @@ class Player
       capturedHex.push_back(&selectedHex);
       selectedHex.visited = true;
       selectedHex.setColor(teamColor);
-      if(selectedHex.isEdge())
+      int i = capturedEdge(selectedHex);
+      direction start;
+      if(i != 0)
       {
-        switch(chosenPath)
+        switch(i)
         {
-          case (int)path::vertical:
-          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 0)
-          {
-            ++winFlag;
-            begin = selectedHex.getEdge1();
-          }
-          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
-          {
-            ++winFlag;
-          }
+          case 1:
+          start = selectedHex.getEdge1();
           break;
-          case (int)path::horizontal:
-          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 0)
-          {
-            ++winFlag;
-            begin = selectedHex.getEdge1();
-          }
-          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
-          {
-            ++winFlag;
-          }
-          break;
+          case 2:
+          start = selectedHex.getEdge2();
         }
-      }
-      if(selectedHex.cornerFlag())
-      {
-        
-        switch(chosenPath)
+        if(begin != start && begin == direction::unused)
         {
-          case (int)path::vertical:
-          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 0)
-          {
-            ++winFlag;
-            begin = selectedHex.getEdge1();
-          }
-          if((int)selectedHex.getEdge1() % 2 != 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
-          {
-            ++winFlag;
-          }
-          break;
-          case (int)path::horizontal:
-          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 0)
-          {
-            ++winFlag;
-            begin = selectedHex.getEdge1();
-          }
-          if((int)selectedHex.getEdge1() % 2 == 0 && winFlag == 1 && selectedHex.getEdge1() != begin)
-          {
-            ++winFlag;
-          }
-          break;
+          begin = start;
+          deploy(&selectedHex);
         }
       }
       return true;
     }
   }
+  //
   //Pathfinding algorithm
   int deploy(Hex* deployed)
   {
     int deployedCount = 0;
     vector<Hex*> neighbor = deployed ->getNeighboring();
-    if(!(deployed -> visited))
+    if(deployed->inList == false)
+    {
+      longest.push_back(deployed);
+      deployed->inList = true;
+    }
+    if(!(deployed->fullyDeployed()))
     {
       for(auto i = neighbor.begin(); i != neighbor.end(); ++i)
       {
-        if((*i)->visited == false && (*i)->getColor() == teamColor)
+        if((*i)->inList == false && (*i)->getColor() == teamColor)
         {
           longest.push_back(*i);
           ++deployedCount;
+          ++(deployed->deployed);
+          (*i)->inList == true;
         }
       }
       return deployedCount;
     }
     else return deployedCount;
   }
-  void setDir(int path)
+  void setDir(int selected_path)
   {
-    chosenPath = path;
+    chosenPath = (path)selected_path;
+  }
+  int capturedEdge(Hex &captured)
+  {
+    switch(chosenPath)
+    {
+      case path::horizontal:
+      if(captured.getEdge2() == direction::unused)
+      {
+        if(captured.getEdge1() == direction::east || captured.getEdge1() == direction::west)
+        {
+          return 1;
+        }
+      } else if (captured.getEdge1() == direction::east || captured.getEdge1() == direction::west) return 1; 
+      else if (captured.getEdge2() == direction::east || captured.getEdge2() == direction::west) return 2;
+      break;
+      case path::vertical:
+      if(captured.getEdge2() == direction::unused)
+      {
+        if(captured.getEdge1() == direction::north || captured.getEdge1() == direction::south)
+        {
+          return 1;
+        }
+      } else if (captured.getEdge1() == direction::north || captured.getEdge1() == direction::south) return 1; 
+      else if (captured.getEdge2() == direction::north || captured.getEdge2() == direction::south) return 2;
+      break;
+    }
+    return 0;
   }
 };
 
 //Implementation of the win condition algorithm, WIP 
-bool Player::hasWon(direction start)
+bool Player::hasWon()
 {
-  return 1;
+  for(int a = 0; a < longest.size(); ++a)
+  {
+    if(longest[a]->fullyDeployed() == false) deploy(longest[a]);
+    switch(begin)
+    {
+      case direction::east:
+      if((longest[a])->getEdge1() == direction::west || (longest[a])->getEdge2() == direction::west) return 1;
+      break;
+      case direction::west:
+      if((longest[a])->getEdge1() == direction::east || (longest[a])->getEdge2() == direction::east) return 1;
+      break;
+      case direction::north:
+      if((longest[a])->getEdge1() == direction::south || (longest[a])->getEdge2() == direction::south) return 1;
+      break;
+      case direction::south:
+      if((longest[a])->getEdge1() == direction::north || (longest[a])->getEdge2() == direction::north) return 1;
+      break;
+      default:
+      return 0;
+    } 
+    
+  }
   return 0;
 }
 
@@ -260,14 +303,14 @@ vector<Hex> initBoard(const int size)
       listHex[a].setEdge(direction::north);
     if (a == (size - 1))
       listHex[a].setCorner(direction::north, direction::east);
-    if (a % size == 0 && a != 0)
+    if (( a + 1 ) % size == 0 && a != size - 1 && a != size*size - 1)
+      listHex[a].setEdge(direction::east); 
+    if (a % size == 0 && a != 0 && a != size*(size-1))
       listHex[a].setEdge(direction::west);
-    if (( a + 1 ) % size && a != 0 && a != size*size - 1)
-      listHex[a].setEdge(direction::east);
-    if (((a > (size*(size - 1))) && (a < size*size - 1)))
-      listHex[a].setEdge(direction::south);
     if (a == (size*size - 1))
       listHex[a].setCorner(direction::south, direction::east);
+    if (((a > (size*(size - 1))) && (a < size*size - 1)))
+      listHex[a].setEdge(direction::south);
     if (a == (size*(size - 1)))
       listHex[a].setCorner(direction::south, direction::west);
   }
@@ -383,14 +426,16 @@ int main()
   boardLink(board);
   render(board);
   int player2dir = 0;
-  bool turnPlayer = 0;
-  cout << "Player " << turnPlayer + 2 << " please select where you want to play:\n";
+  bool turnPlayer = 1;
+  cout << "Player " << turnPlayer + 1 << " please select where you want to play:\n";
   cout << "[1] North - South\n" << "[2] East - West\n";
   cin >> player2dir;
-  playerTest[turnPlayer + 1].setDir(player2dir-1);
-  playerTest[turnPlayer].setDir(!player2dir);
-  while(true)
+  --player2dir;
+  playerTest[turnPlayer].setDir(player2dir);
+  playerTest[!turnPlayer].setDir(!player2dir);
+  while(!playerTest[turnPlayer].hasWon())
   {
+    turnPlayer = !turnPlayer;
     int move;
     cout << "Player " << turnPlayer + 1 << "'s turn! " <<"Please specify the move: ";
     cin >> move;
@@ -402,6 +447,6 @@ int main()
       cout << std::endl;
     }
     render(board);
-    turnPlayer = !turnPlayer;
   }
+  cout << "Player" << turnPlayer + 1 << " has won!\n";
 }
