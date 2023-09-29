@@ -4,18 +4,21 @@
 #include <cmath>
 #include <stdlib.h>
 #include <windows.h>
+#include <ctime>
 
 using std::cout, std::cin, std::string, std::vector;
 
 enum class hexState {none, red, blue};
 enum class direction {center, north, east, south, west, unused = -1};
 enum class path {vertical, horizontal};
-
+enum class difficulty {not_set, easy, medium};
+//Purely cosmetic, can be removed if built to another system
 void Color(int color)
 {
+  //remove the below line & the #include<windows.h> on line 6 to make it work with other system
  SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }
-
+//The class for the Hex
 class Hex
 {
   private:
@@ -180,33 +183,26 @@ class Player
       selectedHex.visited = true;
       selectedHex.setColor(teamColor);
       int i = capturedEdge(selectedHex);
-      direction start;
-      if(i != 0)
-      {
-        switch(i)
-        {
-          case 1:
-          start = selectedHex.getEdge1();
-          break;
-          case 2:
-          start = selectedHex.getEdge2();
-        }
+      direction start = getWinningEdge(selectedHex);
         if(begin != start && begin == direction::unused)
         {
           begin = start;
           deploy(&selectedHex);
+        } else if(begin == start)
+        {
+          deploy(&selectedHex);
         }
       }
       return true;
-    }
   }
   //
   //Pathfinding algorithm
   int deploy(Hex* deployed)
   {
+    direction start = getWinningEdge(*deployed);
     int deployedCount = 0;
     vector<Hex*> neighbor = deployed ->getNeighboring();
-    if(deployed->inList == false)
+    if(deployed->inList == false && start == this -> begin)
     {
       longest.push_back(deployed);
       deployed->inList = true;
@@ -220,7 +216,7 @@ class Player
           longest.push_back(*i);
           ++deployedCount;
           ++(deployed->deployed);
-          (*i)->inList == true;
+          (*i)->inList = true;
         }
       }
       return deployedCount;
@@ -258,9 +254,27 @@ class Player
     }
     return 0;
   }
+  direction getWinningEdge(Hex &thisHex)
+  {
+    int i = capturedEdge(thisHex);
+    direction start = direction::center;
+    if(i != 0)
+    {
+      switch(i)
+      {
+        case 1:
+        start = thisHex.getEdge1();
+        break;
+        case 2:
+        start = thisHex.getEdge2();
+      }
+    }
+    return start;
+  }
+
 };
 
-//Implementation of the win condition algorithm, WIP 
+//Implementation of the win condition algorithm. WERKS 
 bool Player::hasWon()
 {
   for(int a = 0; a < longest.size(); ++a)
@@ -287,6 +301,43 @@ bool Player::hasWon()
   }
   return 0;
 }
+//WIP, will be used later
+class AI : public Player
+{
+  public:
+  bool setDifficulty(difficulty diff)
+  {
+    if(this->diff == difficulty::not_set) 
+    {
+      this -> diff = diff;
+      return 1;
+    }
+    else return 0;
+  }
+  int firstMove(vector<Hex> &board);
+  int nextMove(vector<Hex> &board);
+  private:
+  difficulty diff = difficulty::not_set;
+};
+
+int AI::firstMove(vector<Hex> &board)
+{
+  switch(diff)
+  {
+    case difficulty::easy:
+    srand(time(0));
+    while(true)
+    {
+      int a = rand() % board.size();
+      if(capture(board[a]))
+      {
+        return a;
+      }
+    }
+    break;
+  }
+}
+
 
 vector<Hex> initBoard(const int size)
 {
@@ -395,6 +446,7 @@ void boardLink(vector<Hex> &board)
 void render(vector<Hex> &board)
 {
   system("cls");
+
   int offset = 1;
   for(auto i = board.begin(); i != board.end(); ++i)
   {
@@ -448,5 +500,5 @@ int main()
     }
     render(board);
   }
-  cout << "Player" << turnPlayer + 1 << " has won!\n";
+  cout << "Player " << turnPlayer + 1 << " has won!\n";
 }
