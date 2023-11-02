@@ -21,7 +21,7 @@ void Color(int color)
 //The class for the Hex
 class Hex
 {
-  private:
+  protected:
   hexState stateFlag;
   bool isCorner;
   int id;
@@ -145,7 +145,7 @@ class Hex
 
 class Player
 {
-  private:
+  protected:
   //List of a captured hex for a player object
   vector<Hex*>capturedHex;
   //Identify which is which, X or O
