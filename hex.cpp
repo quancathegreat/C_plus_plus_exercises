@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <windows.h>
 #include <ctime>
+#include <random>
+#include <algorithm>
+
 
 using std::cout, std::cin, std::string, std::vector;
 
@@ -31,6 +34,8 @@ class Hex
   
   public: 
   bool inList = false;
+  int deployed = 0;
+  bool visited;
   //Constructor
   Hex(int i)
   {
@@ -49,15 +54,8 @@ class Hex
   //Connect the hexes, return 0 for a successful connection, return 1 if already full
   int connectHex(Hex* ptr)
   {
-    int connected = 6;
-    if(isCorner) connected = 3;
-    if(direction1 != direction::center) connected = 4;
-    if(neighbor.size() < connected)
-    {
       neighbor.push_back(ptr);
       return 0;
-    }
-    else return 1;
   }
   //Setting Edge
   void setEdge(direction a)
@@ -65,7 +63,6 @@ class Hex
     direction1 = a;
     direction2 = direction::unused;
   }
-  int deployed = 0;
   inline bool fullyDeployed()
   {
     int size = this->neighbor.size();
@@ -109,8 +106,6 @@ class Hex
   {
     return id;
   }
-  //Should probably private this attribute and use a method to access this one.
-  bool visited;
   //Method to set the color (or X and O) of the hex, will return true if successfully set, will return false if there is already a color
   bool setColor(hexState color)
   {
@@ -120,6 +115,10 @@ class Hex
       return true;
     }
     else return false;
+  }
+  void clearColor()
+  {
+    stateFlag = hexState::none;
   }
   vector<Hex*> getNeighboring()
   {
@@ -141,7 +140,20 @@ class Hex
   {
     return stateFlag;
   }
+  int score = 0;
+//
 };
+
+void ClearAllHex(vector<Hex> &Board)
+{
+  for(auto iter = Board.begin(); iter != Board.end(); ++iter)
+  {
+    iter->visited = 0;
+    iter->deployed = 0;
+    iter->inList = false;
+    iter->clearColor();
+  }
+}
 
 class Player
 {
@@ -153,10 +165,8 @@ class Player
   //For use in win condition algorithm, to be implemented
   vector<Hex*>longest;
   path chosenPath;
-  bool winFlag;
   direction begin;
   public:
-  short int ends;
   //Player initialization
   hexState selectColor(hexState a)
   {
@@ -169,12 +179,10 @@ class Player
   Player(hexState team)
   {
     teamColor = team;
-    winFlag = 0;
-    begin = direction::unused;
-    ends = 0;
+    begin = direction::center;
   }
   //Method to capture the hexes, return true if successfully capture, return false if failure
-  bool capture(Hex& selectedHex)
+  virtual bool capture(Hex& selectedHex)
   {
     if(selectedHex.visited) return false;
     else 
@@ -182,9 +190,9 @@ class Player
       capturedHex.push_back(&selectedHex);
       selectedHex.visited = true;
       selectedHex.setColor(teamColor);
-      int i = capturedEdge(selectedHex);
+      int i = getEdgeCornerbyDirection(selectedHex);
       direction start = getWinningEdge(selectedHex);
-        if(begin != start && begin == direction::unused)
+        if(begin != start && begin == direction::center)
         {
           begin = start;
           deploy(&selectedHex);
@@ -227,7 +235,8 @@ class Player
   {
     chosenPath = (path)selected_path;
   }
-  int capturedEdge(Hex &captured)
+  //Based on the chosen path, return which corner to use.
+  int getEdgeCornerbyDirection(Hex &captured)
   {
     switch(chosenPath)
     {
@@ -254,9 +263,10 @@ class Player
     }
     return 0;
   }
+  //Get one of the two ends of the winning edge.
   direction getWinningEdge(Hex &thisHex)
   {
-    int i = capturedEdge(thisHex);
+    int i = getEdgeCornerbyDirection(thisHex);
     direction start = direction::center;
     if(i != 0)
     {
@@ -271,7 +281,12 @@ class Player
     }
     return start;
   }
-
+  void clearAll()
+  {
+    capturedHex.clear();
+    begin = direction::center;
+    longest.clear();
+  }
 };
 
 //Implementation of the win condition algorithm. WERKS 
@@ -297,46 +312,46 @@ bool Player::hasWon()
       default:
       return 0;
     } 
-    
   }
   return 0;
 }
 //WIP, will be used later
-class AI : public Player
+class AIdiot : public Player
 {
   public:
-  bool setDifficulty(difficulty diff)
+  vector<int> initBoardAI(int times, Player &otherPlayer, vector<Hex> &board)
   {
-    if(this->diff == difficulty::not_set) 
+    vector<int> returnedSheet(board.size(), 0);
+    for(int a = 0; a < times; ++a)
     {
-      this -> diff = diff;
-      return 1;
-    }
-    else return 0;
-  }
-  int firstMove(vector<Hex> &board);
-  int nextMove(vector<Hex> &board);
-  private:
-  difficulty diff = difficulty::not_set;
-};
-
-int AI::firstMove(vector<Hex> &board)
-{
-  switch(diff)
-  {
-    case difficulty::easy:
-    srand(time(0));
-    while(true)
-    {
-      int a = rand() % board.size();
-      if(capture(board[a]))
+      vector<int> scoreSheet;
+      for (int a = 0; a < board.size(); ++a)
       {
-        return a;
+        scoreSheet.push_back(a);
       }
+      std::random_device rd;
+      std::default_random_engine random(rd());
+      std::shuffle(scoreSheet.begin(), scoreSheet.end(), random);
+      for (int a = 0; a < board.size(); ++a)
+      {
+        if(a & 1) capture(board[scoreSheet[a]]);
+        else otherPlayer.capture(board[scoreSheet[a]]);
+      }
+      if(this->hasWon())
+      {
+        for(int a = 0; a < board.size(); ++a)
+        {
+          if(board[a].getColor() == this->teamColor) ++returnedSheet[a];
+        }
+      }
+      ClearAllHex(board);
+      this->clearAll();
+      otherPlayer.clearAll();
     }
-    break;
+    return returnedSheet;
   }
-}
+  AIdiot(hexState team) : Player(team) {}
+};
 
 
 vector<Hex> initBoard(const int size)
@@ -367,7 +382,6 @@ vector<Hex> initBoard(const int size)
   }
   return listHex;
 }
-
 void boardLink(vector<Hex> &board)
 {
   int size = board.size();
@@ -445,7 +459,7 @@ void boardLink(vector<Hex> &board)
 }
 void render(vector<Hex> &board)
 {
-  system("cls");
+  //system("cls");
 
   int offset = 1;
   for(auto i = board.begin(); i != board.end(); ++i)
@@ -471,34 +485,94 @@ int main()
   cout << "DEBUG: Insert board size: ";
   cin >> size;
   cout << std::endl;
-  vector<Player> playerTest;
-  playerTest.push_back(Player(hexState::blue));
-  playerTest.push_back(Player(hexState::red));
+
   vector<Hex> board = initBoard(size);
   boardLink(board);
-  render(board);
-  int player2dir = 0;
-  bool turnPlayer = 1;
-  cout << "Player " << turnPlayer + 1 << " please select where you want to play:\n";
-  cout << "[1] North - South\n" << "[2] East - West\n";
-  cin >> player2dir;
-  --player2dir;
-  playerTest[turnPlayer].setDir(player2dir);
-  playerTest[!turnPlayer].setDir(!player2dir);
-  while(!playerTest[turnPlayer].hasWon())
+  int isVSAI = false;
+  cout << "2-Player or 1-Player mode: \n";
+  cout << "[1] One-Player Mode\n" << "[2] Two-player Mode\n";
+  cin >> isVSAI;
+  if(!(isVSAI - 1))
   {
-    turnPlayer = !turnPlayer;
-    int move;
-    cout << "Player " << turnPlayer + 1 << "'s turn! " <<"Please specify the move: ";
-    cin >> move;
-    cout << std::endl;
-    while(!playerTest[turnPlayer].capture(board[move]))
+    AIdiot AIMain = AIdiot(hexState::red);
+    AIdiot AISimlulateHuman = AIdiot(hexState::blue);
+    cout << "Please select where you want to play:\n";
+    cout << "[1] East - West \n" << "[2] North - South\n";
+    int player2dir = 0;
+    cin >> player2dir;
+    --player2dir;
+    AIMain.setDir(player2dir);
+    AISimlulateHuman.setDir(!player2dir);
+    vector<int> scoreBoard = AIMain.initBoardAI(500000, AISimlulateHuman, board);
+    AISimlulateHuman.~AIdiot();
+    render(board);
+    Player Human = Player(hexState::blue);
+    Human.setDir(!player2dir);
+    Player *winPointer = &AIMain;
+    while(!winPointer->hasWon())
     {
-      cout << "This is not a valid move, please select another! ";
+      if(winPointer == &AIMain) 
+      {
+        winPointer = &Human; 
+        int move;
+        cout << "Please enter your move:";
+        cin >> move;
+        cout << std::endl;
+        while(!winPointer -> capture(board[move]))
+        {
+          cout << "This is not a valid move, please select another! ";
+          cin >> move;
+          cout << std::endl;
+        }
+        render(board);
+      }
+      else
+      {
+        winPointer = &AIMain;
+        int move;
+        auto finded = std::max_element(scoreBoard.begin(), scoreBoard.end());
+        move = finded-scoreBoard.begin();
+        while(!winPointer -> capture(board[move])) 
+        {
+          *finded = -1;
+          finded = std::max_element(scoreBoard.begin(), scoreBoard.end());
+          move = finded-scoreBoard.begin();
+        }
+        render(board);
+      }
+    }
+    if(winPointer != &AIMain) cout << "You" << " have won!\n";
+    else cout << "You" << " have lost!\n";
+  }
+  else
+  {
+    vector<Player> playerTest;
+    playerTest.push_back(Player(hexState::blue));
+    playerTest.push_back(Player(hexState::red));
+    render(board);
+    int player2dir = 0;
+    bool turnPlayer = 1;
+    cout << "Player " << turnPlayer + 1 << " please select where you want to play:\n";
+    cout << "[1] North - South\n" << "[2] East - West\n";
+    cin >> player2dir;
+    --player2dir;
+    playerTest[turnPlayer].setDir(player2dir);
+    playerTest[!turnPlayer].setDir(!player2dir);
+    while(!playerTest[turnPlayer].hasWon())
+    {
+      turnPlayer = !turnPlayer;
+      int move;
+      cout << "Player " << turnPlayer + 1 << "'s turn! " <<"Please specify the move: ";
       cin >> move;
       cout << std::endl;
+      while(!playerTest[turnPlayer].capture(board[move]))
+      {
+        cout << "This is not a valid move, please select another! ";
+        cin >> move;
+        cout << std::endl;
+      }
+      render(board);
     }
-    render(board);
+    cout << "Player " << turnPlayer + 1 << " has won!\n";
   }
-  cout << "Player " << turnPlayer + 1 << " has won!\n";
 }
